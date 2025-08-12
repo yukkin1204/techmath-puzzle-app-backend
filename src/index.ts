@@ -11,21 +11,29 @@ app.use('*', cors({
   origin: 'https://techmath-puzzle-app.vercel.app',
 }))
 
+const normalize = (str: string) =>
+  str.toLowerCase().replace(/\s+/g, '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, s =>String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+
 app.post('/check-answer', async (c) => {
-  const { penName, problemId, answer } = await c.req.json()
+  try {
+    const { penName, problemId, answer } = await c.req.json()
 
-  if (!penName || !problemId || !answer) {
-    return c.json({ success: false, message: 'ペンネーム、問題ID、回答は必須です' }, 400)
+    if (!penName || !problemId || !answer) {
+      return c.json({ success: false, message: 'ペンネーム、回答は必須です' }, 400)
+    }
+
+    const correctAnswer = await c.env.ANSWERS.get(problemId)
+    if (!correctAnswer) {
+      return c.json({ success: false, message: '無効な問題IDです' }, 404)
+    }
+
+    const isCorrect = normalize(correctAnswer) === normalize(answer)
+
+    return c.json({ success: true, correct: isCorrect })
+  } catch (err) {
+    console.error(err)
+    return c.json({ success: false, message: 'サーバーエラーが発生しました' }, 500)
   }
-
-  const correctAnswer = await c.env.ANSWERS.get(problemId)
-  if (!correctAnswer) {
-    return c.json({ success: false, message: '無効な問題IDです' }, 400)
-  }
-
-  const isCorrect = correctAnswer.toLowerCase() === answer.toLowerCase()
-
-  return c.json({ success: true, correct: isCorrect })
 })
 
 export default app
