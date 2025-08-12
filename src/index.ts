@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 
 type Env = {
   ANSWERS: KVNamespace
+  DISCORD_WEBHOOK_URL: string
 }
 
 const app = new Hono<{ Bindings: Env }>()
@@ -28,6 +29,19 @@ app.post('/check-answer', async (c) => {
     }
 
     const isCorrect = normalize(correctAnswer) === normalize(answer)
+
+    if (isCorrect) {
+      const webhookUrl = c.env.DISCORD_WEBHOOK_URL
+      if (webhookUrl) {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `ペンネーム「${penName}」さんが問題ID「${problemId}」に正解しました！`
+          }),
+        })
+      }
+    }
 
     return c.json({ success: true, correct: isCorrect })
   } catch (err) {
